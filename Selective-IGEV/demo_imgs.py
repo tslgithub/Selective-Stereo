@@ -13,6 +13,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 import os
 import torch.nn.functional as F
+import cv2
 
 DEVICE = 'cuda'
 import os
@@ -35,7 +36,7 @@ def demo(args):
     output_directory.mkdir(exist_ok=True)
 
     with torch.no_grad():
-        left_images = sorted(glob.glob(args.left_imgs, recursive=True))
+        left_images  = sorted(glob.glob(args.left_imgs, recursive=True))
         right_images = sorted(glob.glob(args.right_imgs, recursive=True))
         print(f"Found {len(left_images)} images. Saving files to {output_directory}/")
 
@@ -43,15 +44,37 @@ def demo(args):
             image1 = load_image(imfile1)
             image2 = load_image(imfile2)
 
+            left_cv_image = cv2.imread(imfile1)
+            right_cv_image = cv2.imread(imfile1)
+
             padder = InputPadder(image1.shape, divis_by=32)
             image1, image2 = padder.pad(image1, image2)
 
             disp = model(image1, image2, iters=args.valid_iters, test_mode=True)
             disp = disp.cpu().numpy()
-            disp = padder.unpad(disp)
-            file_stem = imfile1.split('/')[-2]
+            disp = padder.unpad(disp).squeeze()
+            file_stem = imfile1.split('/')[-1]
             filename = os.path.join(output_directory, f'{file_stem}.png')
-            plt.imsave(filename, disp.squeeze(), cmap='jet')
+            # plt.imsave(filename, disp, cmap='jet')
+
+            # 合并显示
+            disp = np.round(disp * 256).astype(np.uint16)
+            depth = cv2.applyColorMap(cv2.convertScaleAbs(disp.squeeze(), alpha=0.01),cv2.COLORMAP_JET)
+            depth = np.append(np.append(left_cv_image,right_cv_image,1),depth,1)
+
+            cv2.rectangle(depth,(0,0),  (160,70),(0,255,0),-1)
+            cv2.rectangle(depth,(640,0),(640+200,70),(0,255,0),-1)
+            cv2.rectangle(depth,(640+640,0),(640+640+210,70),(0,255,0),-1)
+            cv2.putText(depth,"left",  (20, 50), 5,3, (255,0,255),3)
+            cv2.putText(depth,"right", (0+640,50),5,3,(255,0,255),3)
+            cv2.putText(depth,"depth", (0+640+640,50),5,3,(255,0,255),3)
+            ih,iw,ic = depth.shape
+            cv2.line(depth,(int(iw/3),0),(int(iw/3),ih),(255,0,128),4,1 )
+            cv2.line(depth,(int(iw/3)*2,0),(int(iw/3)*2,ih),(255,0,128),4,2 )
+
+            cv2.imwrite(filename,depth , [int(cv2.IMWRITE_PNG_COMPRESSION), 0] )
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -73,10 +96,9 @@ if __name__ == '__main__':
     parser.add_argument('--slow_fast_gru', action='store_true', help="iterate the low-res GRUs more frequently")
     parser.add_argument('--n_gru_layers', type=int, default=3, help="number of hidden GRU levels")
     parser.add_argument('--max_disp', type=int, default=192, help="max disp of geometry encoding volume")
-
+    
     parser.add_argument('--precision_dtype',type=str, default='float16', choices=['float16', 'bfloat16', 'float32'], help='Choose precision type: float16 or bfloat16 or float32')
 
-    
     args = parser.parse_args()
 
     demo(args)
