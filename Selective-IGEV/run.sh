@@ -5,15 +5,14 @@
 #     --restore_ckpt ./weighs/sceneflow/sceneflow.pth 
 
 
-# To predict Middlebury, run
-# python demo_imgs.py --restore_ckpt ./weighs/middlebury/middlebury_finetune.pth  --max_disp 768  --left_imgs '/mnt/Data2/depth/depth20250102/left1/*.png' --right_imgs '/mnt/Data2/depth/depth20250102/right1/*.png' --output_directory output/middlebury
-output_path=output/middlebury
-mkdir -p ${output_path}
-
+model_name=eth3d
+model_name=sceneflow # 优
+model_name=middlebury # 优
+model_name=kitti2012 # 优
 python demo_imgs.py \
-    --restore_ckpt ./weighs/middlebury/middlebury_finetune.pth \
-    --left_imgs '/mnt/Data2/depth/depth20250102/left1/*.png'  \
-    --right_imgs '/mnt/Data2/depth/depth20250102/right1/*.png' \
-    --output_directory ${output_path} \
-    --precision_dtype float16
+   --restore_ckpt ./weights/${model_name}/${model_name}_finetune.pth \
+   --left_imgs    '/mnt/Data2/depth/depth20250102/left1/*.png' \
+   --right_imgs   '/mnt/Data2/depth/depth20250102/right1/*.png' \
+   --output_directory /mnt/Data2/depth/depth20250102/result/Selective-IGEV/${model_name} \
+   --precision_dtype float32
 
